@@ -1,22 +1,20 @@
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import MethodNotAllowed
+
+from django.shortcuts import get_object_or_404
 
 from posts.models import Group, Post, Comment
 from .serializers import GroupSerializer, PostSerializer, CommentSerializer
 
 
-class GroupViewSet(viewsets.ModelViewSet):
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
 
-    def create(self, request, *args, **kwargs):
-        raise MethodNotAllowed('Method POST not allowed!')
-
 
 class PostViewSet(viewsets.ModelViewSet):
-    queryset = Post.objects.all()
+    queryset = Post.objects.select_related('author')
     serializer_class = PostSerializer
 
     def perform_create(self, serializer):
@@ -47,19 +45,19 @@ class PostViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
-    queryset = Comment.objects.all()
     serializer_class = CommentSerializer
 
     def get_queryset(self):
-        return Comment.objects.filter(
+        return Comment.objects.select_related('author').filter(
             post_id=self.kwargs['post_pk']
         )
 
     def perform_create(self, serializer):
-
-        post = Post.objects.get(
+        post = get_object_or_404(
+            Post,
             id=self.kwargs['post_pk']
         )
+
         serializer.save(
             author=self.request.user,
             post=post
