@@ -49,3 +49,46 @@ class PostViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
+
+    def get_queryset(self):
+        post_id = self.kwargs['post_pk']
+        return Comment.objects.filter(post_id=post_id)
+
+    def perform_create(self, serializer):
+        post_id = self.kwargs['post_pk']
+        post = Post.objects.get(id=post_id)
+        serializer.save(
+            author=self.request.user,
+            post=post
+        )
+
+    def update(self, request, *args, **kwargs):
+        user = self.request.user
+        post = self.get_object()
+        if user != post.author:
+            return Response(
+                {'Detail': 'You do not have permission to perform'
+                 'this action.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        serializer = CommentSerializer(post, data=request.data, partial=True)
+        if serializer.is_valid():
+            post_id = self.kwargs['post_pk']
+            post = Post.objects.get(id=post_id)
+            serializer.save(
+                author=self.request.user,
+                post=post
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().destroy(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.request.user
+        post = self.get_object()
+        if user != post.author:
+            return Response(
+                {'Detail': 'You do not have permission to perform'
+                 'this action.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
